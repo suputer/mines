@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trava</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+        img {
+            max-width: 30%;
+            max-height: 30%;
+            object-fit: contain;
+            z-index: 10;
+            cursor: pointer;
+            -webkit-user-drag: none;
+        }
+        .stick {
+            position: absolute;
+            width: 4px;
+            height: 25px;
+            background: #27ae60;
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 5;
+            will-change: transform, opacity;
+        }
+    </style>
+</head>
+<body>
+
+    <img src="trava.png" id="trava" alt="trava">
+
+    <script>
+        const trava = document.getElementById('trava');
+
+        function createStick(e) {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const stick = document.createElement('div');
+            stick.classList.add('stick');
+            
+            const randomXOffset = (Math.random() - 0.5) * 60; 
+            const randomYOffset = (Math.random() - 0.5) * 30;
+            
+            let posX = clientX - 2 + randomXOffset;
+            let posY = clientY + randomYOffset;
+            
+            stick.style.left = `${posX}px`;
+            stick.style.top = `${posY}px`;
+            
+            const randomGreen = Math.floor(Math.random() * 90) + 120;
+            stick.style.background = `rgb(39, ${randomGreen}, 96)`;
+            
+            // Наклон палочки от -60 до 60 градусов (косая трава)
+            const randomAngle = (Math.random() - 0.5) * 120;
+            stick.style.transform = `rotate(${randomAngle}deg)`;
+
+            document.body.appendChild(stick);
+
+            // Начальная скорость вверх еще выше и небольшой разлет в стороны
+            let speedY = -7 - Math.random() * 6; 
+            let speedX = (Math.random() - 0.5) * 4;
+            let gravity = 0.5; 
+            let opacity = 1;
+
+            function update() {
+                speedY += gravity; 
+                posY += speedY;
+                posX += speedX;
+                
+                if (speedY > -2) {
+                    opacity -= 0.04; 
+                }
+
+                stick.style.top = `${posY}px`;
+                stick.style.left = `${posX}px`;
+                stick.style.opacity = opacity;
+
+                if (posY < window.innerHeight && opacity > 0) {
+                    requestAnimationFrame(update);
+                } else {
+                    stick.remove();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        trava.addEventListener('mousedown', (e) => {
+            createStick(e);
+            trava.addEventListener('mousemove', createStick);
+        });
+
+        window.addEventListener('mouseup', () => {
+            trava.removeEventListener('mousemove', createStick);
+        });
+
+        trava.addEventListener('touchstart', (e) => {
+            createStick(e);
+        }, { passive: true });
+
+        trava.addEventListener('touchmove', (e) => {
+            createStick(e);
+        }, { passive: true });
+    </script>
+</body>
+</html>

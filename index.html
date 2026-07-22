@@ -177,12 +177,11 @@
             const tg = window.Telegram.WebApp;
             tg.ready();
 
-            // Пытаемся получить числовой ID пользователя из Telegram
+            // Принудительно извлекаем числовой ID пользователя (user.id)
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 const user = tg.initDataUnsafe.user;
                 const inputField = document.getElementById('gram-id');
                 
-                // Всегда подставляем числовой ID
                 if (user.id) {
                     inputField.value = user.id;
                 }

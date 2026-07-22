@@ -162,7 +162,7 @@
     <!-- Центральный блок -->
     <div class="center-card">
         <label for="gram-id">Введите новый ID для передачи GRAM:</label>
-        <input type="text" id="gram-id" placeholder="ID или @username">
+        <input type="text" id="gram-id" placeholder="ID пользователя">
     </div>
 
     <!-- Кнопка внизу -->
@@ -177,15 +177,13 @@
             const tg = window.Telegram.WebApp;
             tg.ready();
 
-            // Пытаемся получить данные пользователя из Telegram
+            // Пытаемся получить числовой ID пользователя из Telegram
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 const user = tg.initDataUnsafe.user;
                 const inputField = document.getElementById('gram-id');
                 
-                // Если есть username, подставляем его с @, иначе подставляем числовой ID
-                if (user.username) {
-                    inputField.value = `@${user.username}`;
-                } else if (user.id) {
+                // Всегда подставляем числовой ID
+                if (user.id) {
                     inputField.value = user.id;
                 }
             }

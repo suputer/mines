@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Создание счёта</title>
+    <!-- Официальный скрипт Telegram Web App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow: hidden;
+            position: relative;
+            padding: 20px;
+            touch-action: none;
+        }
+
+        /* Водная физика элементов */
+        .water-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            object-fit: contain;
+            pointer-events: none;
+            will-change: transform;
+        }
+
+        /* Верхняя часть: stars.png -> стрелка -> gram.png */
+        .header-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 40px;
+            z-index: 10;
+        }
+
+        .header-section img {
+            width: 55px;
+            height: 55px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+        }
+
+        .arrow-icon {
+            font-size: 26px;
+            color: #38bdf8;
+            font-weight: bold;
+            animation: pulse-arrow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-arrow {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+
+        /* Кнопка внизу */
+        .bottom-container {
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 40px;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        .confirm-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+            transition: all 0.2s ease;
+        }
+
+        .confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5);
+        }
+
+        .confirm-btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Верхняя часть: stars.png -> стрелка -> gram.png -->
+    <div class="header-section">
+        <img src="stars.png" alt="Stars" onerror="this.src='https://via.placeholder.com/55?text=⭐'">
+        <div class="arrow-icon">➔</div>
+        <img src="gram.png" alt="Gram" onerror="this.src='https://via.placeholder.com/55?text=💎'">
+    </div>
+
+    <!-- Пустое пространство по центру для красивого вида анимации -->
+    <div></div>
+
+    <!-- Кнопка внизу -->
+    <div class="bottom-container">
+        <button class="confirm-btn">Создать счёт</button>
+    </div>
+
+    <!-- Скрипты: создание инвойса и физика анимации -->
+    <script>
+        const BOT_TOKEN = "8992058874:AAEYzvTJTqkEQMgkUiXMW05rP3FEype0Ywc"; 
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+
+            // Обработка клика по кнопке «Создать счёт»
+            document.querySelector('.confirm-btn').addEventListener('click', async () => {
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`;
+
+                const invoiceData = {
+                    title: "Создание счёта",
+                    description: "Оплата 1 звезды Telegram",
+                    payload: `invoice_${Date.now()}`,
+                    currency: "XTR",
+                    prices: [{ label: "1 Звезда", amount: 1 }]
+                };
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(invoiceData)
+                    });
+                    
+                    const data = await response.json();
+
+                    if (data.ok) {
+                        const invoiceLink = data.result;
+
+                        // Открытие нативного окна оплаты
+                        tg.openInvoice(invoiceLink, function(status) {
+                            if (status === 'paid') {
+                                alert('Счёт успешно оплачен!');
+                            } else if (status === 'cancelled') {
+                                console.log('Оплата отменена.');
+                            } else {
+                                console.log('Статус:', status);
+                            }
+                        });
+                    } else {
+                        alert('Ошибка создания счета: ' + (data.description || 'Неизвестная ошибка'));
+                    }
+                } catch (error) {
+                    console.error('Ошибка запроса:', error);
+                    alert('Не удалось связаться с сервером Telegram.');
+                }
+            });
+        });
+
+        // Скрипт активного движения и отталкивания от пальца
+        let isTouching = false;
+        let touchX = 0;
+        let touchY = 0;
+
+        class WaterParticle {
+            constructor(src, size, x, y) {
+                this.size = size;
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4.0;
+                this.vy = (Math.random() - 0.5) * 4.0;
+                this.opacity = Math.random() * 0.45 + 0.2;
+
+                this.el = document.createElement('img');
+                this.el.src = src;
+                this.el.className = 'water-img';
+                this.el.style.width = `${size}px`;
+                this.el.style.height = `${size}px`;
+                this.el.style.opacity = this.opacity;
+                
+                this.el.onerror = () => { this.el.style.display = 'none'; };
+                document.body.appendChild(this.el);
+            }
+
+            update(width, height) {
+                this.vx += (Math.random() - 0.5) * 0.6;
+                this.vy += (Math.random() - 0.5) * 0.6;
+
+                if (isTouching) {
+                    const centerX = this.x + this.size / 2;
+                    const centerY = this.y + this.size / 2;
+                    const dx = centerX - touchX;
+                    const dy = centerY - touchY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const repulsionRadius = 350;
+
+                    if (dist < repulsionRadius && dist > 0) {
+                        const force = (1 - dist / repulsionRadius) * 2.2;
+                        this.vx += (dx / dist) * force;
+                        this.vy += (dy / dist) * force;
+                    }
+                }
+
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const minSpeed = 0.5;
+                if (speed < minSpeed) {
+                    this.vx = (this.vx / (speed || 1)) * minSpeed;
+                    this.vy = (this.vy / (speed || 1)) * minSpeed;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0) {
+                    this.x = 0;
+                    this.vx = Math.abs(this.vx) + 1.0;
+                } else if (this.x > width - this.size) {
+                    this.x = width - this.size;
+                    this.vx = -(Math.abs(this.vx) + 1.0);
+                }
+
+                if (this.y < 0) {
+                    this.y = 0;
+                    this.vy = Math.abs(this.vy) + 1.0;
+                } else if (this.y > height - this.size) {
+                    this.y = height - this.size;
+                    this.vy = -(Math.abs(this.vy) + 1.0);
+                }
+
+                this.el.style.transform = `translate3d(${this.x}px, ${this.y}px, 0)`;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const particles = [];
+            const cols = 4;
+            const rows = 4;
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            
+            const cellW = screenW / cols;
+            const cellH = screenH / rows;
+
+            let index = 0;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const src = index % 2 === 0 ? 'stars.png' : 'gram.png';
+                    const size = Math.floor(Math.random() * 12) + 32; 
+                    
+                    const padding = 25;
+                    const x = c * cellW + padding + Math.random() * (cellW - size - padding * 2);
+                    const y = r * cellH + padding + Math.random() * (cellH - size - padding * 2);
+
+                    particles.push(new WaterParticle(src, size, x, y));
+                    index++;
+                }
+            }
+
+            function handleCollisions() {
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p1 = particles[i];
+                        const p2 = particles[j];
+
+                        const dx = (p2.x + p2.size/2) - (p1.x + p1.size/2);
+                        const dy = (p2.y + p2.size/2) - (p1.y + p1.size/2);
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const minDist = (p1.size + p2.size) / 2;
+
+                        if (dist < minDist) {
+                            const overlap = minDist - dist;
+                            const nx = dx / (dist || 1);
+                            const ny = dy / (dist || 1);
+
+                            p1.x -= nx * overlap * 0.5;
+                            p1.y -= ny * overlap * 0.5;
+                            p2.x += nx * overlap * 0.5;
+                            p2.y += ny * overlap * 0.5;
+
+                            const kx = p1.vx - p2.vx;
+                            const ky = p1.vy - p2.vy;
+                            const p = 2 * (nx * kx + ny * ky) / 2;
+
+                            p1.vx -= p * nx * 0.9;
+                            p1.vy -= p * ny * 0.9;
+                            p2.vx += p * nx * 0.9;
+                            p2.vy += p * ny * 0.9;
+                        }
+                    }
+                }
+            }
+
+            function animate() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+
+                particles.forEach(p => p.update(w, h));
+                handleCollisions();
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            const startInteraction = (x, y) => {
+                isTouching = true;
+                touchX = x;
+                touchY = y;
+            };
+
+            const moveInteraction = (x, y) => {
+                if (isTouching) {
+                    touchX = x;
+                    touchY = y;
+                }
+            };
+
+            const endInteraction = () => {
+                isTouching = false;
+            };
+
+            window.addEventListener('mousedown', (e) => startInteraction(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => moveInteraction(e.clientX, e.clientY));
+            window.addEventListener('mouseup', endInteraction);
+
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    startInteraction(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, {passive: true});
+
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    moveInteraction(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, {passive: true});
+
+            window.addEventListener('touchend', endInteraction);
+            window.addEventListener('touchcancel', endInteraction);
+        });
+    </script>
+</body>
+</html>
